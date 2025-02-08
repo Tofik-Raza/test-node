@@ -1,0 +1,19 @@
+{
+    "name": "encryption-api",
+    "version": "1.0.0",
+    "description": "Express.js API using TensorFlow.js for encryption and decryption",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "@tensorflow/tfjs-node": "^4.0.0",
+      "crypto-js": "^4.1.1",
+      "cors": "^2.8.5",
+      "express": "^4.18.2"
+    },
+    "engines": {
+      "node": ">=16"
+    }
+  }
+  
