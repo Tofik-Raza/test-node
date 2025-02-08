@@ -26,6 +26,9 @@ app.get("/status", (req, res) => {
 
 // ** Encryption Endpoint **
 app.post("/encrypt", async (req, res) => {
+    if (!models.encryptionModel) {
+        return res.status(500).json({ error: "Model is still loading. Try again later." });
+    }
     const { plaintext, key } = req.body;
     if (!plaintext || !key) {
         return res.status(400).json({ error: "Missing plaintext or key" });
@@ -35,10 +38,10 @@ app.post("/encrypt", async (req, res) => {
         const encryptedBinary = await encryptVariableLength(plaintext, key, models.encryptionModel);
         res.json({ encryptedBinary });
     } catch (error) {
-        console.error(" Encryption error:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // ** Decryption Endpoint **
 app.post("/decrypt", async (req, res) => {
