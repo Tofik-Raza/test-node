@@ -2,6 +2,7 @@ const tf = require("@tensorflow/tfjs-node");
 const CryptoJS = require("crypto-js");
 const path = require("path");
 const fs = require("fs");
+
 // Helper function to convert string to binary
 function stringToBinary(str) {
     return str.split('').map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
@@ -24,6 +25,7 @@ function binaryToString(binaryArray) {
 }
 
 // Load TensorFlow models using file:// for local storage
+
 async function loadModel() {
     const encryptionModelPath = path.join(__dirname, "models/encryption-model.json");
     const decryptionModelPath = path.join(__dirname, "models/decryption-model.json");
@@ -140,4 +142,4 @@ async function decryptVariableLength(ciphertext, key, model, chunkSize = 32) {
     return await cryptoDecrypt(cryptoEncryptedText, key);
 }
 
-module.exports = { loadModel, encryptVariableLength, decryptVariableLength, cryptoEncrypt, cryptoDecrypt };
+module.exports = { loadModel, encryptVariableLength, decryptVariableLength};
