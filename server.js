@@ -25,12 +25,15 @@ app.get("/status", (req, res) => {
 });
 
 // ** Encryption Endpoint **
+// ** Encryption Endpoint **
 app.post("/encrypt", async (req, res) => {
     if (!models.encryptionModel) {
         return res.status(500).json({ error: "Model is still loading. Try again later." });
     }
     const { plaintext, key } = req.body;
-    if (!plaintext || !key) {
+    
+    // Replace isNullOrUndefined check with a simple validation
+    if (plaintext == null || key == null) {
         return res.status(400).json({ error: "Missing plaintext or key" });
     }
 
@@ -42,11 +45,12 @@ app.post("/encrypt", async (req, res) => {
     }
 });
 
-
 // ** Decryption Endpoint **
 app.post("/decrypt", async (req, res) => {
     const { encryptedBinary, key } = req.body;
-    if (!encryptedBinary || !key) {
+
+    // Replace isNullOrUndefined check with a simple validation
+    if (encryptedBinary == null || key == null) {
         return res.status(400).json({ error: "Missing ciphertext or key" });
     }
 
@@ -58,6 +62,7 @@ app.post("/decrypt", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 const PORT = 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
