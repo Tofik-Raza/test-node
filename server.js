@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { loadModel, encryptVariableLength, decryptVariableLength } = require("./hope");
+const { loadModel, encryptVariableLength, decryptVariableLength } = require("./encryption_Handler");
 
 const app = express();
 app.use(cors());
@@ -45,17 +45,6 @@ app.post("/decrypt", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Helper function to convert binary array to string
-function binaryToString(binaryArray) {
-    let binaryString = binaryArray.join("");
-    let text = "";
-    for (let i = 0; i < binaryString.length; i += 8) {
-        text += String.fromCharCode(parseInt(binaryString.slice(i, i + 8), 2));
-    }
-    return text;
-}
-
 // Start the server
 const PORT = 5000;
 app.listen(PORT, () => {
