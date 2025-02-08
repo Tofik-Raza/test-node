@@ -1,4 +1,4 @@
-const tf = require("@tensorflow/tfjs-node");   // required node version 22 instead of 23 ( used 22.12.0)
+const tf = require("@tensorflow/tfjs-node");   // required node version 22 instead of 23 ( used 22.12.0 )
 const CryptoJS = require("crypto-js");
 const path = require("path");
 const fs = require("fs");
