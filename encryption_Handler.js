@@ -1,6 +1,7 @@
 const tf = require("@tensorflow/tfjs-node");
 const CryptoJS = require("crypto-js");
 const path = require("path");
+const fs = require("fs");
 // Helper function to convert string to binary
 function stringToBinary(str) {
     return str.split('').map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
@@ -24,8 +25,16 @@ function binaryToString(binaryArray) {
 
 // Load TensorFlow models using file:// for local storage
 async function loadModel() {
-    const encryptionModel = await tf.loadLayersModel(`file://${path.join(__dirname, "models/encryption-model.json")}`);
-    const decryptionModel = await tf.loadLayersModel(`file://${path.join(__dirname, "models/decryption-model.json")}`);
+    const encryptionModelPath = path.join(__dirname, "models/encryption-model.json");
+    const decryptionModelPath = path.join(__dirname, "models/decryption-model.json");
+
+    if (!fs.existsSync(encryptionModelPath) || !fs.existsSync(decryptionModelPath)) {
+        throw new Error("Model files not found. Ensure models exist in the correct path.");
+    }
+
+    const encryptionModel = await tf.loadLayersModel(`file://${encryptionModelPath}`);
+    const decryptionModel = await tf.loadLayersModel(`file://${decryptionModelPath}`);
+
     return { encryptionModel, decryptionModel };
 }
 
