@@ -6,16 +6,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let model;
+let models = {};
 
 // Load the TensorFlow model at startup
-let models = {};
 (async () => {
-    models = await loadModel();
-    console.log("Model loaded successfully!");
+    try {
+        models = await loadModel();
+        console.log("✅ Model loaded successfully!");
+    } catch (error) {
+        console.error("❌ Error loading model:", error);
+    }
 })();
 
-// Encryption endpoint
+// ** Status Check Route **
+app.get("/status", (req, res) => {
+    res.json({ status: "Server is running successfully!" });
+});
+
+// ** Encryption Endpoint **
 app.post("/encrypt", async (req, res) => {
     const { plaintext, key } = req.body;
     if (!plaintext || !key) {
@@ -26,11 +34,12 @@ app.post("/encrypt", async (req, res) => {
         const encryptedBinary = await encryptVariableLength(plaintext, key, models.encryptionModel);
         res.json({ encryptedBinary });
     } catch (error) {
+        console.error("❌ Encryption error:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Decryption endpoint
+// ** Decryption Endpoint **
 app.post("/decrypt", async (req, res) => {
     const { encryptedBinary, key } = req.body;
     if (!encryptedBinary || !key) {
@@ -39,25 +48,42 @@ app.post("/decrypt", async (req, res) => {
 
     try {
         const plaintext = await decryptVariableLength(encryptedBinary, key, models.decryptionModel);
-
         res.json({ plaintext });
     } catch (error) {
+        console.error("❌ Decryption error:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Helper function to convert binary array to string
-function binaryToString(binaryArray) {
-    let binaryString = binaryArray.join("");
-    let text = "";
-    for (let i = 0; i < binaryString.length; i += 8) {
-        text += String.fromCharCode(parseInt(binaryString.slice(i, i + 8), 2));
+// ** Test Encryption Route **
+app.get("/test-encryption", async (req, res) => {
+    const plaintext = "HelloWorld";
+    const key = "MySecretKey123";
+    
+    try {
+        const encryptedBinary = await encryptVariableLength(plaintext, key, models.encryptionModel);
+        res.json({ plaintext, encryptedBinary });
+    } catch (error) {
+        res.status(500).json({ error: "Encryption failed", details: error.message });
     }
-    return text;
-}
+});
 
-// Start the server
+// ** Test Decryption Route **
+app.get("/test-decryption", async (req, res) => {
+    const plaintext = "HelloWorld";
+    const key = "MySecretKey123";
+    
+    try {
+        const encryptedBinary = await encryptVariableLength(plaintext, key, models.encryptionModel);
+        const decryptedText = await decryptVariableLength(encryptedBinary, key, models.decryptionModel);
+        res.json({ plaintext, encryptedBinary, decryptedText });
+    } catch (error) {
+        res.status(500).json({ error: "Decryption failed", details: error.message });
+    }
+});
+
+// ** Start the Server **
 const PORT = 5000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`🚀 Server is running on port ${PORT}`);
 });
