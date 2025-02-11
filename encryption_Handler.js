@@ -1,15 +1,12 @@
-const tf = require("@tensorflow/tfjs-node");
+const tf = require("@tensorflow/tfjs-node");   // required node version 22 instead of 23 ( used 22.12.0 )
 const CryptoJS = require("crypto-js");
 const path = require("path");
 const fs = require("fs");
 
 // Helper function to convert string to binary
 function stringToBinary(str) {
-    return Array.from(str)
-        .map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
-        .join('')
-        .split('')
-        .map(bit => parseInt(bit, 10));
+    return str.split('').map(char => char.charCodeAt(0).toString(2).padStart(8, '0'))
+        .join('').split('').map(bit => parseInt(bit, 10));
 }
 
 // Helper function to pad binary arrays
@@ -19,14 +16,16 @@ function padBinaryArray(arr, length) {
 
 // Convert binary array back to string
 function binaryToString(binaryArray) {
-    return binaryArray
-        .join("")
-        .match(/.{1,8}/g)
-        .map(binary => String.fromCharCode(parseInt(binary, 2)))
-        .join("");
+    let binaryString = binaryArray.join("");
+    let text = "";
+    for (let i = 0; i < binaryString.length; i += 8) {
+        text += String.fromCharCode(parseInt(binaryString.slice(i, i + 8), 2));
+    }
+    return text;
 }
 
-// Load TensorFlow models
+// Load TensorFlow models using file:// for local storage
+
 async function loadModel() {
     const encryptionModelPath = path.join(__dirname, "models/encryption-model.json");
     const decryptionModelPath = path.join(__dirname, "models/decryption-model.json");
@@ -35,16 +34,14 @@ async function loadModel() {
         throw new Error("Model files not found. Ensure models exist in the correct path.");
     }
 
-    const [encryptionModel, decryptionModel] = await Promise.all([
-        tf.loadLayersModel(`file://${encryptionModelPath}`),
-        tf.loadLayersModel(`file://${decryptionModelPath}`),
-    ]);
+    const encryptionModel = await tf.loadLayersModel(`file://${encryptionModelPath}`);
+    const decryptionModel = await tf.loadLayersModel(`file://${decryptionModelPath}`);
 
     return { encryptionModel, decryptionModel };
 }
 
 // AES Encryption
-function cryptoEncrypt(message, key) {
+async function cryptoEncrypt(message, key) {
     const keyPadded = key.padEnd(32).slice(0, 32); // Ensure 32-byte key for AES-256
     const iv = CryptoJS.lib.WordArray.random(16);
     const encrypted = CryptoJS.AES.encrypt(message, CryptoJS.enc.Utf8.parse(keyPadded), {
@@ -56,7 +53,7 @@ function cryptoEncrypt(message, key) {
 }
 
 // AES Decryption
-function cryptoDecrypt(encryptedMessage, key) {
+async function cryptoDecrypt(encryptedMessage, key) {
     try {
         const keyPadded = key.padEnd(32).slice(0, 32); // Ensure 32-byte key for AES-256
         const encryptedData = CryptoJS.enc.Base64.parse(encryptedMessage);
@@ -72,24 +69,34 @@ function cryptoDecrypt(encryptedMessage, key) {
         return decrypted.toString(CryptoJS.enc.Utf8); // Convert decrypted data to UTF-8
     } catch (error) {
         console.error("Decryption error:", error);
-        throw new Error("Decryption failed");
+        return "Decryption failed";
     }
 }
 
 // Encrypt function
 async function encryptVariableLength(plaintext, key, model, chunkSize = 32) {
-    const cryptoEncryptedMessage = cryptoEncrypt(plaintext, key);
+    const cryptoEncryptedMessage = await cryptoEncrypt(plaintext, key);
     const plaintextBinary = stringToBinary(cryptoEncryptedMessage);
     const keyBinary = stringToBinary(key);
 
-    const ciphertextFlat = [];
+    const chunks = [];
     for (let i = 0; i < plaintextBinary.length; i += chunkSize) {
-        const plaintextChunk = padBinaryArray(plaintextBinary.slice(i, i + chunkSize), chunkSize);
-        const keyChunk = padBinaryArray(keyBinary.slice(i % keyBinary.length, (i % keyBinary.length) + chunkSize), chunkSize);
+        const plaintextChunk = plaintextBinary.slice(i, i + chunkSize);
+        const keyChunk = keyBinary.slice(i % keyBinary.length, (i % keyBinary.length) + chunkSize);
 
+        const paddedPlaintextChunk = padBinaryArray(plaintextChunk, chunkSize);
+        const paddedKeyChunk = padBinaryArray(keyChunk, chunkSize);
+
+        chunks.push({ plaintextChunk: paddedPlaintextChunk, keyChunk: paddedKeyChunk });
+    }
+
+    let ciphertextFlat = [];
+    for (const { plaintextChunk, keyChunk } of chunks) {
         const combinedChunk = plaintextChunk.concat(keyChunk);
+
         if (combinedChunk.length !== chunkSize * 2) {
-            throw new Error("Chunk length mismatch during encryption");
+            console.error(`Chunk length mismatch`);
+            continue;
         }
 
         const inputData = tf.tensor2d([combinedChunk], [1, chunkSize * 2]);
@@ -105,14 +112,24 @@ async function encryptVariableLength(plaintext, key, model, chunkSize = 32) {
 async function decryptVariableLength(ciphertext, key, model, chunkSize = 32) {
     const keyBinary = stringToBinary(key);
 
-    const plaintextFlat = [];
+    const chunks = [];
     for (let i = 0; i < ciphertext.length; i += chunkSize) {
-        const ciphertextChunk = padBinaryArray(ciphertext.slice(i, i + chunkSize), chunkSize);
-        const keyChunk = padBinaryArray(keyBinary.slice(i % keyBinary.length, (i % keyBinary.length) + chunkSize), chunkSize);
+        const ciphertextChunk = ciphertext.slice(i, i + chunkSize);
+        const keyChunk = keyBinary.slice(i % keyBinary.length, (i % keyBinary.length) + chunkSize);
 
+        const paddedCiphertextChunk = padBinaryArray(ciphertextChunk, chunkSize);
+        const paddedKeyChunk = padBinaryArray(keyChunk, chunkSize);
+
+        chunks.push({ ciphertextChunk: paddedCiphertextChunk, keyChunk: paddedKeyChunk });
+    }
+
+    let plaintextFlat = [];
+    for (const { ciphertextChunk, keyChunk } of chunks) {
         const combinedChunk = ciphertextChunk.concat(keyChunk);
+
         if (combinedChunk.length !== chunkSize * 2) {
-            throw new Error("Chunk length mismatch during decryption");
+            console.error(`Chunk length mismatch`);
+            continue;
         }
 
         const inputData = tf.tensor2d([combinedChunk], [1, chunkSize * 2]);
@@ -122,7 +139,7 @@ async function decryptVariableLength(ciphertext, key, model, chunkSize = 32) {
     }
 
     const cryptoEncryptedText = binaryToString(plaintextFlat);
-    return cryptoDecrypt(cryptoEncryptedText, key);
+    return await cryptoDecrypt(cryptoEncryptedText, key);
 }
 
-module.exports = { loadModel, encryptVariableLength, decryptVariableLength };
+module.exports = { loadModel, encryptVariableLength, decryptVariableLength};
