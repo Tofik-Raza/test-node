@@ -105,7 +105,7 @@ async function encryptVariableLength(plaintext, key, model, chunkSize = 32) {
         inputData.dispose();
     }
 
-    return ciphertextFlat;
+    return cryptoEncryptedMessage;
 }
 
 // Decrypt function
